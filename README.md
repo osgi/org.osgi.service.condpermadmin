@@ -1,5 +1,9 @@
 # org.osgi.service.condpermadmin
 
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/osgi/org.osgi.service.condpermadmin/badge)](https://securityscorecards.dev/viewer/?uri=github.com/osgi/org.osgi.service.condpermadmin)
+[![build](https://github.com/osgi/org.osgi.service.condpermadmin/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/osgi/org.osgi.service.condpermadmin/actions/workflows/build.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/org.osgi/org.osgi.service.condpermadmin)](https://central.sonatype.com/artifact/org.osgi/org.osgi.service.condpermadmin)
+
 OSGi Specification repo for org.osgi.service.condpermadmin
 
 Part of the [OSGi Specification Project](https://projects.eclipse.org/projects/technology.osgi).
