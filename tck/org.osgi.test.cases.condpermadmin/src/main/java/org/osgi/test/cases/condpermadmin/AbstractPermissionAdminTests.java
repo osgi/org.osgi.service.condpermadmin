@@ -18,6 +18,8 @@
 
 package org.osgi.test.cases.condpermadmin;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.IOException;
 import java.net.URL;
 import java.security.AllPermission;
@@ -25,22 +27,30 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.condpermadmin.ConditionalPermissionAdmin;
 import org.osgi.service.condpermadmin.ConditionalPermissionUpdate;
 import org.osgi.service.permissionadmin.PermissionAdmin;
 import org.osgi.service.permissionadmin.PermissionInfo;
-import org.osgi.test.support.OSGiTestCase;
+import org.osgi.test.cases.condpermadmin.junit.ConditionalTestSupport;
+import org.osgi.test.common.annotation.InjectBundleContext;
 
-public abstract class AbstractPermissionAdminTests extends OSGiTestCase {
+public abstract class AbstractPermissionAdminTests {
+
+	@InjectBundleContext
+	protected BundleContext		context;
+
 	protected ConditionalPermissionAdmin condPermAdmin;
 	protected PermissionAdmin permAdmin;
 	private Collection<ServiceReference< ? >>	serviceRefs;
 
-	protected void setUp() throws Exception {
-		super.setUp();
+	@BeforeEach
+	public void setUp() throws Exception {
 		serviceRefs = new ArrayList<>();
 		// get condpermadmin
 		condPermAdmin = getService(ConditionalPermissionAdmin.class);
@@ -48,10 +58,12 @@ public abstract class AbstractPermissionAdminTests extends OSGiTestCase {
 		permAdmin = getService(PermissionAdmin.class);
 		
 	    // make sure this bundle has all permissions
-	    permAdmin.setPermissions(getContext().getBundle().getLocation(), new PermissionInfo[] {new PermissionInfo("(" + AllPermission.class.getName() +")")});
+	    permAdmin.setPermissions(context.getBundle().getLocation(), new PermissionInfo[] {new PermissionInfo("(" + AllPermission.class.getName() +")")});
+	    ConditionalTestSupport.grantAllPermission(permAdmin, context.getBundles());
 	}
 
-	protected void tearDown() throws Exception {
+	@AfterEach
+	public void tearDown() throws Exception {
 		// clear any permissions set
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 	    update.getConditionalPermissionInfos().clear();
@@ -65,7 +77,7 @@ public abstract class AbstractPermissionAdminTests extends OSGiTestCase {
 
 		for (Iterator<ServiceReference< ? >> iRefs = serviceRefs
 				.iterator(); iRefs.hasNext();) {
-	    	getContext().ungetService(iRefs.next());
+	    	context.ungetService(iRefs.next());
 	    }
 		serviceRefs = null;
 
@@ -74,9 +86,11 @@ public abstract class AbstractPermissionAdminTests extends OSGiTestCase {
 	}
 
 	protected Bundle installBundle(String bundle, boolean start) throws BundleException, IOException {
-		URL entry = getContext().getBundle().getEntry(bundle);
-		assertNotNull("Can not find bundle: " + bundle, entry);
-		Bundle b= getContext().installBundle(entry.toExternalForm(), entry.openStream());
+		URL entry = context.getBundle().getEntry(bundle);
+		assertThat(entry).as("Can not find bundle: " + bundle).isNotNull();
+		// the real context: the osgi-test context uninstalls its bundles after
+		// each test, and testcond.jar is a framework extension
+		Bundle b= context.getBundle().getBundleContext().installBundle(entry.toExternalForm(), entry.openStream());
 	    // make sure the test bundles do not have any location permissions set; SimplePermissionPolicy sets these
 	    permAdmin.setPermissions(b.getLocation(), null);
 		if (start)
@@ -85,10 +99,10 @@ public abstract class AbstractPermissionAdminTests extends OSGiTestCase {
 	}
 
 	public <T> T getService(Class<T> clazz) {
-		ServiceReference<T> ref = getContext().getServiceReference(clazz);
-        assertNotNull("No service found: " + clazz, ref);
-		T service = getContext().getService(ref);
-        assertNotNull("No service found: " + clazz, service);
+		ServiceReference<T> ref = context.getServiceReference(clazz);
+        assertThat(ref).as("No service found: " + clazz).isNotNull();
+		T service = context.getService(ref);
+        assertThat(service).as("No service found: " + clazz).isNotNull();
         serviceRefs.add(ref);
         return service;
     }

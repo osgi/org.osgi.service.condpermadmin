@@ -18,21 +18,29 @@
 
 package org.osgi.test.cases.condpermadmin;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.osgi.test.assertj.bundle.BundleAssert.assertThat;
+
 import java.io.FilePermission;
 import java.net.SocketPermission;
 import java.security.AllPermission;
 import java.security.Permission;
+import java.util.Collections;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.ServicePermission;
+import org.osgi.framework.wiring.FrameworkWiring;
 import org.osgi.service.condpermadmin.ConditionInfo;
 import org.osgi.service.condpermadmin.ConditionalPermissionInfo;
 import org.osgi.service.condpermadmin.ConditionalPermissionUpdate;
 import org.osgi.service.permissionadmin.PermissionInfo;
 import org.osgi.test.cases.condpermadmin.service.ConditionalTBCService;
 import org.osgi.test.cases.condpermadmin.testcond.TestPostPonedCondition;
-import org.osgi.test.support.wiring.Wiring;
 
 
 public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTests {
@@ -56,22 +64,24 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 	private ConditionalTBCService	tbc;
 	private FilePermission fileWrite;
 	private FilePermission fileRead;
-	protected void setUp() throws Exception {
+	@BeforeEach
+	public void setUp() throws Exception {
 		super.setUp();
 	    tb1 = installBundle("tb1.jar", true);
 	    tb2 = installBundle("tb2.jar", true);
 	    tb3 = installBundle("tb3.jar", true);
-		assertTrue("testcond.jar not resolved", Wiring.resolveBundles(
-				getContext(),
-				new Bundle[] {installBundle("testcond.jar", false)}));
+		Bundle testcond = installBundle("testcond.jar", false);
+		context.getBundle(0).adapt(FrameworkWiring.class).resolveBundles(Collections.singletonList(testcond));
+		assertThat(testcond).as("testcond.jar").isInState(Bundle.RESOLVED);
 
 		tbc = getService(ConditionalTBCService.class);
 
-	    fileWrite = new FilePermission(getContext().getDataFile("test").getAbsolutePath(), "write");
-	    fileRead = new FilePermission(getContext().getDataFile("test").getAbsolutePath(), "read");
+	    fileWrite = new FilePermission(context.getDataFile("test").getAbsolutePath(), "write");
+	    fileRead = new FilePermission(context.getDataFile("test").getAbsolutePath(), "read");
 	}
 
-	protected void tearDown() throws Exception {
+	@AfterEach
+	public void tearDown() throws Exception {
 		tb1.uninstall();
 		tb2.uninstall();
 		tb3.uninstall();
@@ -112,21 +122,23 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		return new ConditionInfo[] {new ConditionInfo("org.osgi.service.condpermadmin.BundleLocationCondition", args)}; //$NON-NLS-1$
 	}
 
+	@Test
 	public void testUpdate01() {
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows = update
 				.getConditionalPermissionInfos();
-		assertTrue("table is not empty", rows.isEmpty()); //$NON-NLS-1$
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(rows).as("table is not empty").isEmpty(); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 	}
 
+	@Test
 	public void testUpdate02() {
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows = update
 				.getConditionalPermissionInfos();
 		ConditionalPermissionInfo info = condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.ALLOW);
 		rows.add(info);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, fileWrite, false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new FilePermission("test", "read"), true); //$NON-NLS-1$ //$NON-NLS-2$
@@ -135,12 +147,13 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.clear();
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 		testPermission(tbc, fileWrite, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new AllPermission(), true);
 	}
 
+	@Test
 	public void testUpdate03() {
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows = update
@@ -149,7 +162,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		ConditionalPermissionInfo info2 = condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.ALLOW);
 		rows.add(info1);
 		rows.add(info2);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, fileWrite, false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, false); //$NON-NLS-1$ //$NON-NLS-2$
@@ -158,7 +171,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 		testPermission(tbc, fileWrite, false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new AllPermission(), false);
@@ -166,12 +179,13 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 		testPermission(tbc, fileWrite, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new AllPermission(), true);
 	}
 
+	@Test
 	public void testUpdate04() {
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows = update
@@ -180,7 +194,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		ConditionalPermissionInfo info2 = condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.ALLOW);
 		rows.add(info1);
 		rows.add(info2);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		ConditionalPermissionUpdate update1 = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows1 = update1
@@ -191,24 +205,25 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		List<ConditionalPermissionInfo> rows2 = update2
 				.getConditionalPermissionInfos();
 		rows2.remove(0);
-		assertTrue("failed to commit", update2.commit()); //$NON-NLS-1$
+		assertThat(update2.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, fileWrite, false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new AllPermission(), false);
 
-		assertFalse("succeeded commit", update1.commit()); //$NON-NLS-1$
+		assertThat(update1.commit()).as("succeeded commit").isFalse(); //$NON-NLS-1$
 
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
 
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 		testPermission(tbc, fileWrite, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new AllPermission(), true);
 	}
 
+	@Test
 	public void testLocationPermission() {
 		permAdmin.setDefaultPermissions(READONLY_INFOS);
 		permAdmin.setPermissions(tb1.getLocation(), READWRITE_INFOS);
@@ -218,7 +233,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 				.getConditionalPermissionInfos();
 		ConditionalPermissionInfo condPermInfo = condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, SOCKET_INFOS, ConditionalPermissionInfo.ALLOW);
 		rows.add(condPermInfo);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, fileWrite, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
@@ -235,7 +250,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, fileWrite, false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
@@ -250,13 +265,14 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 
 	}
 
+	@Test
 	public void testNotLocationCondition01() {
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows = update
 				.getConditionalPermissionInfos();
 		ConditionalPermissionInfo condPermInfo = condPermAdmin.newConditionalPermissionInfo(null, getLocationConditions("xxx", true), SOCKET_INFOS, ConditionalPermissionInfo.ALLOW); //$NON-NLS-1$
 		rows.add(condPermInfo);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new AllPermission(), false);
 		testPermission(tbc, new SocketPermission("localhost", "accept"), true); //$NON-NLS-1$ //$NON-NLS-2$
@@ -264,19 +280,20 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new AllPermission(), true);
 		testPermission(tbc, new SocketPermission("localhost", "accept"), true); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
+	@Test
 	public void testNotLocationCondition02() {
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows = update
 				.getConditionalPermissionInfos();
 		ConditionalPermissionInfo condPermInfo = condPermAdmin.newConditionalPermissionInfo(null, getLocationConditions(tb1.getLocation(), true), SOCKET_INFOS, ConditionalPermissionInfo.ALLOW);
 		rows.add(condPermInfo);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new AllPermission(), false);
 		testPermission(tbc, new SocketPermission("localhost", "accept"), false); //$NON-NLS-1$ //$NON-NLS-2$
@@ -284,12 +301,13 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new AllPermission(), true);
 		testPermission(tbc, new SocketPermission("localhost", "accept"), true); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
+	@Test
 	public void testMultipleLocationConditions01() {
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows = update
@@ -299,7 +317,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		ConditionalPermissionInfo condPermInfo2 = condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.ALLOW);
 		rows.add(condPermInfo1);
 		rows.add(condPermInfo2);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new SocketPermission("localhost", "accept"), false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileWrite, false); //$NON-NLS-1$ //$NON-NLS-2$
@@ -308,7 +326,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new SocketPermission("localhost", "accept"), false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileWrite, false); //$NON-NLS-1$ //$NON-NLS-2$
@@ -317,13 +335,14 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new SocketPermission("localhost", "accept"), true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileWrite, true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
+	@Test
 	public void testMultipleLocationConditions02() {
 		ConditionalPermissionUpdate update = condPermAdmin.newConditionalPermissionUpdate();
 		List<ConditionalPermissionInfo> rows = update
@@ -336,7 +355,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		rows.add(condPermInfo1);
 		rows.add(condPermInfo2);
 		rows.add(condPermInfo3);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new SocketPermission("localhost", "accept"), false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new RuntimePermission("exitVM", null), true); //$NON-NLS-1$
@@ -346,7 +365,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new SocketPermission("localhost", "accept"), false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new RuntimePermission("exitVM", null), true); //$NON-NLS-1$
@@ -356,7 +375,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new SocketPermission("localhost", "accept"), false); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new RuntimePermission("exitVM", null), true); //$NON-NLS-1$
@@ -366,7 +385,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$
 
 		testPermission(tbc, new SocketPermission("localhost", "accept"), true); //$NON-NLS-1$ //$NON-NLS-2$
 		testPermission(tbc, new RuntimePermission("exitVM", null), true); //$NON-NLS-1$
@@ -374,6 +393,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		testPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
+	@Test
 	public void testPostponedConditions01() {
 		TestPostPonedCondition.clearConditions();
 
@@ -384,7 +404,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, new ConditionInfo[] {POST_MUT_UNSAT}, READONLY_INFOS, ConditionalPermissionInfo.ALLOW));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.DENY));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, SERVICE_INFOS, ConditionalPermissionInfo.ALLOW));
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$);
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$);
 
 		testStackPermission(tbc, fileRead, false); //$NON-NLS-1$ //$NON-NLS-2$
 
@@ -393,10 +413,10 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		TestPostPonedCondition tc1unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb1.getBundleId()); //$NON-NLS-1$
 		TestPostPonedCondition tc3unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb3.getBundleId()); //$NON-NLS-1$
 
-		assertNotNull("tc1sat", tc1sat); //$NON-NLS-1$
-		assertNotNull("tc3sat", tc3sat); //$NON-NLS-1$
-		assertNotNull("tc1unsat", tc1unsat); //$NON-NLS-1$
-		assertNotNull("tc3unsat", tc3unsat); //$NON-NLS-1$
+		assertThat(tc1sat).as("tc1sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3sat).as("tc3sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc1unsat).as("tc1unsat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3unsat).as("tc3unsat").isNotNull(); //$NON-NLS-1$
 
 		tc1sat.setSatisfied(false);
 		tc3sat.setSatisfied(false);
@@ -409,7 +429,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$);
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$);
 		testStackPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 
 		tc1unsat.setSatisfied(false);
@@ -419,10 +439,11 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		update = condPermAdmin.newConditionalPermissionUpdate();
 		rows = update.getConditionalPermissionInfos();
 		rows.remove(0);
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$);
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$);
 		testStackPermission(tbc, fileRead, false); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
+	@Test
 	public void testPostponedConditions02() {
 		TestPostPonedCondition.clearConditions();
 
@@ -434,7 +455,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, new ConditionInfo[] {POST_MUT_UNSAT}, READONLY_INFOS, ConditionalPermissionInfo.DENY));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.ALLOW));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, SERVICE_INFOS, ConditionalPermissionInfo.ALLOW));
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$);
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$);
 
 		testStackPermission(tbc, fileRead, false); //$NON-NLS-1$ //$NON-NLS-2$
 
@@ -443,10 +464,10 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		TestPostPonedCondition tc1unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb1.getBundleId()); //$NON-NLS-1$
 		TestPostPonedCondition tc3unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb3.getBundleId()); //$NON-NLS-1$
 
-		assertNotNull("tc1sat", tc1sat); //$NON-NLS-1$
-		assertNotNull("tc3sat", tc3sat); //$NON-NLS-1$
-		assertNotNull("tc1unsat", tc1unsat); //$NON-NLS-1$
-		assertNotNull("tc3unsat", tc3unsat); //$NON-NLS-1$
+		assertThat(tc1sat).as("tc1sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3sat).as("tc3sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc1unsat).as("tc1unsat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3unsat).as("tc3unsat").isNotNull(); //$NON-NLS-1$
 
 		tc1sat.setSatisfied(false);
 		tc3sat.setSatisfied(false);
@@ -459,6 +480,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		testStackPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
+	@Test
 	public void testPostponedConditions03() {
 		TestPostPonedCondition.clearConditions();
 
@@ -470,7 +492,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, new ConditionInfo[] {POST_MUT_UNSAT}, READONLY_INFOS, ConditionalPermissionInfo.ALLOW));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.DENY));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, SERVICE_INFOS, ConditionalPermissionInfo.ALLOW));
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$);
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$);
 
 		testStackPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 
@@ -479,10 +501,10 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		TestPostPonedCondition tc1unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb1.getBundleId()); //$NON-NLS-1$
 		TestPostPonedCondition tc3unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb3.getBundleId()); //$NON-NLS-1$
 
-		assertNotNull("tc1sat", tc1sat); //$NON-NLS-1$
-		assertNotNull("tc3sat", tc3sat); //$NON-NLS-1$
-		assertNotNull("tc1unsat", tc1unsat); //$NON-NLS-1$
-		assertNotNull("tc3unsat", tc3unsat); //$NON-NLS-1$
+		assertThat(tc1sat).as("tc1sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3sat).as("tc3sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc1unsat).as("tc1unsat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3unsat).as("tc3unsat").isNotNull(); //$NON-NLS-1$
 
 		tc1sat.setSatisfied(false);
 		tc3sat.setSatisfied(false);
@@ -495,6 +517,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		testStackPermission(tbc, fileRead, false); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
+	@Test
 	public void testPostponedConditions04() {
 		TestPostPonedCondition.clearConditions();
 
@@ -506,7 +529,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, new ConditionInfo[] {POST_MUT_UNSAT}, READONLY_INFOS, ConditionalPermissionInfo.DENY));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.ALLOW));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, SERVICE_INFOS, ConditionalPermissionInfo.ALLOW));
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$);
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$);
 
 		testStackPermission(tbc, fileRead, false); //$NON-NLS-1$ //$NON-NLS-2$
 
@@ -515,10 +538,10 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		TestPostPonedCondition tc1unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb1.getBundleId()); //$NON-NLS-1$
 		TestPostPonedCondition tc3unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb3.getBundleId()); //$NON-NLS-1$
 
-		assertNotNull("tc1sat", tc1sat); //$NON-NLS-1$
-		assertNotNull("tc3sat", tc3sat); //$NON-NLS-1$
-		assertNotNull("tc1unsat", tc1unsat); //$NON-NLS-1$
-		assertNotNull("tc3unsat", tc3unsat); //$NON-NLS-1$
+		assertThat(tc1sat).as("tc1sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3sat).as("tc3sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc1unsat).as("tc1unsat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3unsat).as("tc3unsat").isNotNull(); //$NON-NLS-1$
 
 		tc1sat.setSatisfied(false);
 		tc3sat.setSatisfied(false);
@@ -531,6 +554,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		testStackPermission(tbc, fileRead, true); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
+	@Test
 	public void testPostponedConditions05() {
 		TestPostPonedCondition.clearConditions();
 
@@ -543,7 +567,7 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, new ConditionInfo[] {POST_MUT_UNSAT}, READONLY_INFOS, ConditionalPermissionInfo.ALLOW));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, READONLY_INFOS, ConditionalPermissionInfo.DENY));
 		rows.add(condPermAdmin.newConditionalPermissionInfo(null, ALLLOCATION_CONDS, SERVICE_INFOS, ConditionalPermissionInfo.ALLOW));
-		assertTrue("failed to commit", update.commit()); //$NON-NLS-1$);
+		assertThat(update.commit()).as("failed to commit").isTrue(); //$NON-NLS-1$);
 
 		testStackPermission(tbc, fileRead, false); //$NON-NLS-1$ //$NON-NLS-2$
 
@@ -552,10 +576,10 @@ public class ConditionalPermissionOrderTests extends AbstractPermissionAdminTest
 		TestPostPonedCondition tc1unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb1.getBundleId()); //$NON-NLS-1$
 		TestPostPonedCondition tc3unsat = TestPostPonedCondition.getTestCondition("POST_MUT_UNSAT_" + tb3.getBundleId()); //$NON-NLS-1$
 
-		assertNotNull("tc1sat", tc1sat); //$NON-NLS-1$
-		assertNotNull("tc3sat", tc3sat); //$NON-NLS-1$
-		assertNotNull("tc1unsat", tc1unsat); //$NON-NLS-1$
-		assertNotNull("tc3unsat", tc3unsat); //$NON-NLS-1$
+		assertThat(tc1sat).as("tc1sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3sat).as("tc3sat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc1unsat).as("tc1unsat").isNotNull(); //$NON-NLS-1$
+		assertThat(tc3unsat).as("tc3unsat").isNotNull(); //$NON-NLS-1$
 
 		tc1sat.setSatisfied(false);
 		tc3sat.setSatisfied(false);

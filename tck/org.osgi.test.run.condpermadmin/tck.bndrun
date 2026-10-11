@@ -1,7 +1,7 @@
 # No java: — the test VM is the same as the build's. A fixed path would
 # only be valid on one machine; the minimum version a run requires is
 # recorded as jdk.run.minimum in the POM.
--tester: biz.aQute.junit
+-tester: biz.aQute.tester.junit-platform
 
 -runee: JavaSE-11
 
@@ -18,7 +18,6 @@
 
 # API overlays on the framework classpath (exports become system packages)
 -runpath: \
-	org.apache.servicemix.bundles.junit;version='${tck.range;${servicemix-junit.version}}',\
 	assertj-core;version='${tck.range;${assertj.version}}',\
 	net.bytebuddy.byte-buddy;version='${tck.range;${byte-buddy.version}}'
 
@@ -32,7 +31,17 @@
 tck.range: ${range;[===,==+);${version_cleanup;${1}}}
 
 -runrequires: \
-	bnd.identity;id='org.osgi.test.cases.condpermadmin';version='${tck.range;${revision}}'
+	bnd.identity;id='org.osgi.test.cases.condpermadmin';version='${tck.range;${revision}}',\
+	bnd.identity;id='junit-jupiter-api';version='${tck.range;${junit-jupiter.version}}',\
+	bnd.identity;id='junit-jupiter-engine';version='${tck.range;${junit-jupiter.version}}',\
+	bnd.identity;id='junit-jupiter-params';version='${tck.range;${junit-jupiter.version}}',\
+	bnd.identity;id='junit-platform-commons';version='${tck.range;${junit-platform.version}}',\
+	bnd.identity;id='junit-platform-engine';version='${tck.range;${junit-platform.version}}',\
+	bnd.identity;id='junit-platform-launcher';version='${tck.range;${junit-platform.version}}',\
+	bnd.identity;id='org.opentest4j';version='${tck.range;${opentest4j.version}}',\
+	bnd.identity;id='org.osgi.test.common';version='${tck.range;${osgi-test.version}}',\
+	bnd.identity;id='org.osgi.test.assertj.framework';version='${tck.range;${osgi-test.version}}',\
+	bnd.identity;id='org.osgi.test.junit5';version='${tck.range;${osgi-test.version}}'
 
 # Test infrastructure for the junit-platform tester — mirrors the original
 # cnf/repo/osgi.tck.junit-platform lib that every TCK run carried
@@ -40,4 +49,15 @@ tck.range: ${range;[===,==+);${version_cleanup;${1}}}
 
 # -runbundles is committed and verified by the build; after a dependency
 # change update it with: mvn bnd-resolver:resolve
--runbundles: org.osgi.test.cases.condpermadmin;version='${tck.range;${revision}}'
+-runbundles: \
+	junit-jupiter-api;version='${tck.range;${junit-jupiter.version}}',\
+	junit-jupiter-engine;version='${tck.range;${junit-jupiter.version}}',\
+	junit-jupiter-params;version='${tck.range;${junit-jupiter.version}}',\
+	junit-platform-commons;version='${tck.range;${junit-platform.version}}',\
+	junit-platform-engine;version='${tck.range;${junit-platform.version}}',\
+	junit-platform-launcher;version='${tck.range;${junit-platform.version}}',\
+	org.opentest4j;version='${tck.range;${opentest4j.version}}',\
+	org.osgi.test.assertj.framework;version='${tck.range;${osgi-test.version}}',\
+	org.osgi.test.cases.condpermadmin;version='${tck.range;${revision}}',\
+	org.osgi.test.common;version='${tck.range;${osgi-test.version}}',\
+	org.osgi.test.junit5;version='${tck.range;${osgi-test.version}}'
