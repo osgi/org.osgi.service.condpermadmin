@@ -17,18 +17,28 @@
  *******************************************************************************/
 package org.osgi.test.cases.condpermadmin.junit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.osgi.test.assertj.bundle.BundleAssert.assertThat;
+
 import java.security.AccessControlException;
 import java.security.AllPermission;
 import java.security.Permission;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.PropertyPermission;
 import java.util.StringTokenizer;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.osgi.framework.AdminPermission;
 import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.PackagePermission;
 import org.osgi.framework.ServicePermission;
+import org.osgi.framework.wiring.FrameworkWiring;
 import org.osgi.service.condpermadmin.BundleLocationCondition;
 import org.osgi.service.condpermadmin.BundleSignerCondition;
 import org.osgi.service.condpermadmin.ConditionInfo;
@@ -42,10 +52,7 @@ import org.osgi.test.cases.condpermadmin.service.ConditionalPermTBCService;
 import org.osgi.test.cases.condpermadmin.service.ConditionalTBCService;
 import org.osgi.test.cases.condpermadmin.testcond.TestCondition;
 import org.osgi.test.cases.condpermadmin.testcond.TestConditionRecursive;
-import org.osgi.test.support.compatibility.DefaultTestBundleControl;
-import org.osgi.test.support.wiring.Wiring;
 
-import junit.framework.AssertionFailedError;
 
 /**
  * Contains the test methods of the conditional permission test case.
@@ -54,7 +61,9 @@ import junit.framework.AssertionFailedError;
  * @version 1.0
  */
 @SuppressWarnings("deprecation")
-public class ConditionalTestControl extends DefaultTestBundleControl {
+public class ConditionalTestControl extends ConditionalTestSupport {
+
+
 
   private String            testBundleLocation;
   private Bundle            testBundle;
@@ -80,10 +89,11 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * Creates correct and incorrect ConditionInfo.
    * Check if conditioninfos created from encoded are identical to the original
    */
+  @Test
   public void testConditionInfoCreation() throws Exception {//TC1
-    trace("Test correct conditional infos creation:");
+    System.out.println("Test correct conditional infos creation:");
     try {
-      trace("Create only with type '[type]'");
+      System.out.println("Create only with type '[type]'");
       new ConditionInfo("[conditionType]");
       new ConditionInfo("  [  conditionType  ]  ");
       new ConditionInfo("\t[\rconditionType\n]\t");
@@ -98,14 +108,14 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     ConditionInfo info1 = new ConditionInfo(conditionType, new String[]{location});
     ConditionInfo info2 = new ConditionInfo("[" + conditionType + " " +
                         "\"" + location + "\"]");
-    assertEquals("Constructed from a string ", info1, info2);
-    assertEquals("toString ", info2.getEncoded(), info1.toString());
-    assertEquals("Identical hashcodes ", info1.hashCode(), info2.hashCode());
-    assertEquals("Identical types ", info1.getType(), info2.getType());
-    assertEquals("Identical args ", arrayToString(info1.getArgs()), arrayToString(info2.getArgs()));
+    assertThat(info2).as("Constructed from a string ").isEqualTo(info1);
+    assertThat(info1.toString()).as("toString ").isEqualTo(info2.getEncoded());
+    assertThat(info2.hashCode()).as("Identical hashcodes ").isEqualTo(info1.hashCode());
+    assertThat(info2.getType()).as("Identical types ").isEqualTo(info1.getType());
+    assertThat(arrayToString(info2.getArgs())).as("Identical args ").isEqualTo(arrayToString(info1.getArgs()));
 
     // Bad ConditionInfo
-    trace("Test incorrect conditional infos creation:");
+    System.out.println("Test incorrect conditional infos creation:");
     utility.createBadConditionInfo(" with null type", null, new String[]{location},
                 NullPointerException.class);
     utility.createBadConditionInfo(" with missing type ", "[" + " " + " " +
@@ -130,7 +140,8 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * Check if ConditionalPermissionInfos added in CoditionalPermissionAdmin
    * are identical to the original.
    */
-	public void testConditionalPermissionAdmin() {// TC2
+	@Test
+  public void testConditionalPermissionAdmin() {// TC2
     ConditionInfo cInfo1 = new ConditionInfo(BUNDLE_LOCATION_CONDITION,
         new String[]{testBundleLocation});
     ConditionInfo cInfo2 = new ConditionInfo(BUNDLE_SIGNER_CONDITION,
@@ -144,10 +155,8 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     ConditionalPermissionInfo cpInfo
       = conditionalAdmin.addConditionalPermissionInfo(conditions, permissions);
 
-    assertEquals("ConditionInfos ", arrayToString(cpInfo.getConditionInfos()),
-                                    arrayToString(conditions));
-    assertEquals("PermissionInfos ", arrayToString(cpInfo.getPermissionInfos()),
-                                     arrayToString(permissions));
+    assertThat(arrayToString(conditions)).as("ConditionInfos ").isEqualTo(arrayToString(cpInfo.getConditionInfos()));
+    assertThat(arrayToString(permissions)).as("PermissionInfos ").isEqualTo(arrayToString(cpInfo.getPermissionInfos()));
 
 		Enumeration<ConditionalPermissionInfo> infos = conditionalAdmin
 				.getConditionalPermissionInfos();
@@ -162,18 +171,17 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
       }
     }
 
-    assertTrue("addConditionalPermission correct ", addConditionalPermission);
+    assertThat(addConditionalPermission).as("addConditionalPermission correct ").isTrue();
 
-    assertEquals("ConditionInfos ", arrayToString(cpInfo.getConditionInfos()),
-                                    arrayToString(addedCpInfo.getConditionInfos()));
-    assertEquals("PermissionInfos ", arrayToString(cpInfo.getPermissionInfos()),
-                                     arrayToString(addedCpInfo.getPermissionInfos()));
+    assertThat(arrayToString(addedCpInfo.getConditionInfos())).as("ConditionInfos ").isEqualTo(arrayToString(cpInfo.getConditionInfos()));
+    assertThat(arrayToString(addedCpInfo.getPermissionInfos())).as("PermissionInfos ").isEqualTo(arrayToString(cpInfo.getPermissionInfos()));
   }
 
   /**
    * Test if ConditionalPermissionInfos are created with unique names and set (or create)
    * a Conditional Permission Info with conditions and permissions.
    */
+  @Test
   public void testNamedConditionalPermissionAdmin() {//TC2_1
     //1: Test unique names
     ConditionInfo testCInfo = utility.createTestCInfo(false, false, false, "TestCondition", testBundle.getBundleId());
@@ -201,7 +209,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
       for (int i = 1; i < names.length; i++) {
         name = names[i];
         namePrev = names[i - 1];
-        pass("Test unique name" + i + " and name" + (i - 1) + " in addConditionalPermissionInfo");
+        System.out.println("Test unique name" + i + " and name" + (i - 1) + " in addConditionalPermissionInfo");
         if (name.equals(namePrev)) {
           fail("The names of CPI are same: " + name);
         }
@@ -228,10 +236,8 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     ConditionalPermissionInfo cpInfo2 = null;
     try {
       ConditionalPermissionInfo recievedCPInfo = conditionalAdmin.getConditionalPermissionInfo("cpInfo");
-      assertEquals("ConditionInfos ", arrayToString(cpInfo1.getConditionInfos()),
-                   arrayToString(recievedCPInfo.getConditionInfos()));
-      assertEquals("PermissionInfos ", arrayToString(cpInfo1.getPermissionInfos()),
-                   arrayToString(recievedCPInfo.getPermissionInfos()));
+      assertThat(arrayToString(recievedCPInfo.getConditionInfos())).as("ConditionInfos ").isEqualTo(arrayToString(cpInfo1.getConditionInfos()));
+      assertThat(arrayToString(recievedCPInfo.getPermissionInfos())).as("PermissionInfos ").isEqualTo(arrayToString(cpInfo1.getPermissionInfos()));
 
       //create second with the same name (so only change the condition infos)
       cpInfo2 = conditionalAdmin.setConditionalPermissionInfo("cpInfo", conditions2, new PermissionInfo[]{pInfo2});
@@ -243,14 +249,12 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
         setInfosNumber++;
         infos.nextElement();
       }
-      //test if really a new one is not set
-      assertEquals("setConditionalPermissionInfo with one name ", 1, setInfosNumber);
+			//test if really a new one is not set
+			assertThat(setInfosNumber).as("setConditionalPermissionInfo with one name ").isOne();
       //test if the permissions for cpInfo1 are replaced with the second ones (of cpInfo2)
       recievedCPInfo = conditionalAdmin.getConditionalPermissionInfo("cpInfo");
-      assertEquals("ConditionInfos ", arrayToString(cpInfo2.getConditionInfos()),
-          arrayToString(recievedCPInfo.getConditionInfos()));
-      assertEquals("PermissionInfos ", arrayToString(cpInfo2.getPermissionInfos()),
-          arrayToString(recievedCPInfo.getPermissionInfos()));
+      assertThat(arrayToString(recievedCPInfo.getConditionInfos())).as("ConditionInfos ").isEqualTo(arrayToString(cpInfo2.getConditionInfos()));
+      assertThat(arrayToString(recievedCPInfo.getPermissionInfos())).as("PermissionInfos ").isEqualTo(arrayToString(cpInfo2.getPermissionInfos()));
 
       //test if the second permission is now allowed (and if the first is not)
       utility.setTestBunde(testBundle, false);
@@ -267,6 +271,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * Check if ConditionalPermissionInfos deleted from CoditionalPermissionAdmin
    * are really removed.
    */
+  @Test
   public void testConditionInfoDeletion() {//TC3
     ConditionInfo cInfo1 = new ConditionInfo(BUNDLE_LOCATION_CONDITION,
         new String[]{testBundleLocation});
@@ -283,6 +288,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * Check if only the bundle with the appropriate location
    * has(only) corresponding permissions.
    */
+  @Test
   public void testBundleLocationCondition() {//TC4
     utility.setTestBunde(testBundle, false);
     //remove all permissions
@@ -307,7 +313,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
 
     //This block will be commented for now because it is not clear if in this case
     //there are no permissions or the default permissions (all permissions now)
-//    String bundleLocation = getContext().getBundle().getLocation();
+//    String bundleLocation = context.getBundle().getLocation();
 //    cInfo = new ConditionInfo(BUNDLE_LOCATION_CONDITION, new String[]{bundleLocation});
 //    utility.testPermissions(new ConditionInfo[]{cInfo}, permission,
 //             new AdminPermission[]{}, //allowed
@@ -318,6 +324,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * Check if only the bundle with the appropriate certificates
    * has(only) corresponding permissions.
    */
+  @Test
   public void testBundleSignerCondition() {//TC5
     utility.setTestBunde(testBundle, false);
     permissionAdmin.setPermissions(testBundleLocation, null);
@@ -327,7 +334,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     AdminPermission allPermissions = new AdminPermission("*", "*");
 
     //test with appropriate certificates
-    pass("Test with appropriate certificates");
+    System.out.println("Test with appropriate certificates");
     String dn_s_value = ConditionResource.getString(ConditionalUtility.DN_S);
 		List<String> dn_s = utility.createWildcardDNs(dn_s_value);
 
@@ -344,7 +351,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     ConditionalPermissionInfo condition =
       utility.setPermissionsByCPermissionAdmin(new ConditionInfo[]{cInfo},
           new Permission[]{new PropertyPermission("java.vm", "read")});
-    pass("Test with inappropriate certificates");
+    System.out.println("Test with inappropriate certificates");
     try {
       dn_s_value = ConditionResource.getString(ConditionalUtility.INAPPROPRIATE_DN_S);
 
@@ -362,6 +369,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
   /**
    * Check different cases with satisfied, postponed and mutable conditions.
    */
+  @Test
   public void testMoreConditions() {//TC6
     utility.setTestBunde(testBundle, false);
 
@@ -486,6 +494,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
   /**
    * Tests interaction between ConditionalPermissionAdmin and PermissionAdmin.
    */
+  @Test
   public void testConditionalPA_and_PA() throws Exception {//TC7
     utility.setTestBunde(testBundle, false);
 
@@ -510,6 +519,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
   /**
    * Tests permissions when exists file OSGI-INF/permissions.perm
    */
+  @Test
   public void testBundlePermissionInformation() throws Exception {//TC8
     utility.setTestBunde(permBundle, true);
 
@@ -538,12 +548,13 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * Tests if the conditions permissioninfos set before bundle instalation
    * are automatically applied to bundle when it is installed.
    */
+  @Test
   public void testCPInfosSetBeforeInstallBundle() {//TC9
     //remove all permissions
     permissionAdmin.setPermissions(testBundleLocation, null);
     try {
       testBundle.uninstall();
-      pass("Bundle tb1 uninstalled");
+      System.out.println("Bundle tb1 uninstalled");
     } catch (Exception e) {
       fail(e.getMessage());
     }
@@ -570,7 +581,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
       String message = "Exception thrown while installing bundle again and testing permisions. "
                        + e1.getClass() + ": " + e1.getMessage();
       if (e1 instanceof SecurityException || e1 instanceof AccessControlException) {
-        pass(message);
+        System.out.println(message);
       } else {
         fail(message);
       }
@@ -652,6 +663,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    *         (AdminPermission P "*" "lifecycle")
    * } "12"
    */
+  @Test
   public void testMultipleBundlesOnStack() {//TC10
     try {
         Class.forName(TestCondition.class.getName());
@@ -731,12 +743,12 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     rows.add(utility.createConditionalPermissionInfo(new ConditionInfo[] { blcC, psm105 },
         new Permission[] { permissionP }));
 
-    assertTrue("CPA update failed", update.commit());
+    assertThat(update.commit()).as("CPA update failed").isTrue();
 
     String message = "allowed " + utility.permToString(permissionP);
     try {
       tbc.checkStack(permissionP);
-      pass(message);
+      System.out.println(message);
     } catch (Throwable e) {
     	e.printStackTrace();
       fail(message + " but " + e.getClass().getName() + " was thrown");
@@ -753,7 +765,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     			"TestCondition_104", // postponed for tb2; only evaluated 104 because it is not satisfied
     	};
     	utility.testEqualArrays(order, satisfOrder);
-    } catch (AssertionFailedError e) {
+    } catch (AssertionError e) {
     	try {
 	    	// The following order assumes a bundle stack ordering of tb1/tb2/tb3 (IBM 5, IBM 6).
 	    	String[] order = new String[] {
@@ -765,7 +777,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
 	    	};
 	    	utility.testEqualArrays(order, satisfOrder);
     	}
-    	catch (AssertionFailedError e2) {
+    	catch (AssertionError e2) {
     		try {
     			// The following order assumes a bundle stack ordering of tb3/tb2/tb1 (Oracle 6, IBM 4.2).
     			// It also takes into account the optimization of caching the results of immediate, immutable, 
@@ -779,7 +791,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     	    	};
     	    	utility.testEqualArrays(order, satisfOrder);
         	}
-        	catch (AssertionFailedError e3) {
+        	catch (AssertionError e3) {
         		// The following order assumes a bundle stack ordering of tb1/tb2/tb3 (IBM 5, IBM 6).
         		// It also takes into account the optimization of caching the results of immediate, immutable, 
     			// and satisfied conditions when the bundle protection domain is created (i.e. before the actual permission check).
@@ -794,7 +806,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
         	}
     	}
     }
-//    catch (AssertionFailedError e) {
+//    catch (AssertionError e) {
 //      // added for J9 
 //      String[] order = new String[] {
 //          "TestCondition_100", "TestCondition_100", "TestCondition_100",
@@ -813,6 +825,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * Tests handling of a recursions in permission checks inside
    * Condition.isSatisfied.
    */
+  @Test
   public void testRecursionInChecks() {//TC11
     try {
         Class.forName(TestCondition.class.getName());
@@ -838,7 +851,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     String message = "allowed " + utility.permToString(perm2);
     try {
       domTBC.checkPermission(perm2);
-      pass(message);
+      System.out.println(message);
     } catch (Throwable e) {
 			fail(message + " but " + e.getClass().getName() + " was thrown", e);
     }
@@ -848,7 +861,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
     message = "not allowed " + utility.permToString(perm2);
     try {
       domTBC.checkPermission(perm2);
-      pass(message);
+      System.out.println(message);
     } catch (Throwable e) {
       fail(message + " but " + e.getClass().getName() + " was thrown");
     }
@@ -861,6 +874,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
   /**
    * Check a condition that starts as a mutable and later becomes immutable.
    */
+  @Test
   public void testMutable2Immutable() {//TC12
 	// This test assumes an implementation ordering of the calls to isMutable and then isSatisfied
 	// TODO this testcase mandates that implementations optimize out immutable conditions, this is optional in the spec.
@@ -924,14 +938,16 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * state between methods, if possible. This method can be used
    * to clean up any possible remaining state.</remove>
    */
+  @BeforeEach
   public void setState() throws Exception{
-	assertTrue("Must have a security manager", System.getSecurityManager() != null);
-	assertTrue(serviceAvailable(PermissionAdmin.class)); 
-	assertTrue(serviceAvailable(ConditionalPermissionAdmin.class));
+	Bundle[] infrastructure = context.getBundles();
+	assertThat(System.getSecurityManager() != null).as("Must have a security manager").isTrue();
+	assertThat(serviceAvailable(PermissionAdmin.class)).isTrue(); 
+	assertThat(serviceAvailable(ConditionalPermissionAdmin.class)).isTrue();
 
-		assertTrue("testcond.jar not resolved", Wiring.resolveBundles(
-				getContext(),
-				new Bundle[] {installBundle("testcond.jar", false)}));
+		Bundle testcond = installBundle("testcond.jar", false);
+		context.getBundle(0).adapt(FrameworkWiring.class).resolveBundles(Collections.singletonList(testcond));
+		assertThat(testcond).as("testcond.jar").isInState(Bundle.RESOLVED);
 
     testBundle = installBundle("tb1.jar");
     testBundleLocation = testBundle.getLocation();
@@ -950,7 +966,8 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
 
     utility = new ConditionalUtility(this, permissionAdmin, conditionalAdmin);
     // make sure this bundle has all permissions
-    permissionAdmin.setPermissions(getContext().getBundle().getLocation(), new PermissionInfo[] {new PermissionInfo("(" + AllPermission.class.getName() +")")});
+    permissionAdmin.setPermissions(context.getBundle().getLocation(), new PermissionInfo[] {new PermissionInfo("(" + AllPermission.class.getName() +")")});
+    grantAllPermission(permissionAdmin, infrastructure);
 
     // make sure the test bundles do not have any location permissions set; SimplePermissionPolicy sets these
     permissionAdmin.setPermissions(testBundleLocation, null);
@@ -962,6 +979,7 @@ public class ConditionalTestControl extends DefaultTestBundleControl {
    * Clean up after each method. Notice that during debugging
    * many times the unsetState is never reached.
    */
+  @AfterEach
   public void clearState() throws Exception{
 	  ungetService(tbc);
 	  ungetService(permTBC);

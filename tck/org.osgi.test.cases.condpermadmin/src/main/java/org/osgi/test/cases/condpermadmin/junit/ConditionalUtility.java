@@ -17,6 +17,8 @@
  *******************************************************************************/
 package org.osgi.test.cases.condpermadmin.junit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 import java.lang.reflect.Constructor;
 import java.security.Permission;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
+import org.assertj.core.util.Throwables;
 import org.osgi.framework.AdminPermission;
 import org.osgi.framework.Bundle;
 import org.osgi.service.condpermadmin.ConditionInfo;
@@ -32,9 +35,7 @@ import org.osgi.service.condpermadmin.ConditionalPermissionInfo;
 import org.osgi.service.permissionadmin.PermissionAdmin;
 import org.osgi.service.permissionadmin.PermissionInfo;
 import org.osgi.test.cases.condpermadmin.testcond.TestCondition;
-import org.osgi.test.support.string.Strings;
 
-import junit.framework.AssertionFailedError;
 
 
 @SuppressWarnings("deprecation")
@@ -88,10 +89,10 @@ public class ConditionalUtility {
 			Class< ? extends Throwable> exceptionClass) throws Exception {
 		try {
 			new ConditionInfo(encoded);
-			ConditionalTestControl.fail(message + " did not result in a "
+			fail(message + " did not result in a "
 					+ exceptionClass.getName());
 		} catch (Exception e) {
-			ConditionalTestControl.assertException(message, exceptionClass, e);
+			ConditionalTestSupport.assertException(message, exceptionClass, e);
 		}
 	}
 
@@ -99,9 +100,9 @@ public class ConditionalUtility {
 			Class< ? extends Throwable> exceptionClass) throws Exception {
 		try {
 			new ConditionInfo(type, args);
-			ConditionalTestControl.fail(message + " did not result in a " + exceptionClass.getName());
+			fail(message + " did not result in a " + exceptionClass.getName());
 		} catch (Exception e) {
-			ConditionalTestControl.assertException(message, exceptionClass, e);
+			ConditionalTestSupport.assertException(message, exceptionClass, e);
 		}
 	}
 
@@ -109,11 +110,10 @@ public class ConditionalUtility {
     String message = "allowed " + permToString(permission);
 		try {
 			checkPermission(permission);
-			ConditionalTestControl.pass(message);
+			System.out.println(message);
 		} catch (Throwable e) {
-			ConditionalTestControl
-					.fail(message + " but " + e.getClass().getName()
-							+ " was thrown\n" + Strings.toString(e));
+			fail(message + " but " + e.getClass().getName()
+							+ " was thrown\n" + Throwables.getStackTrace(e));
 		}
 	}
 	
@@ -122,13 +122,13 @@ public class ConditionalUtility {
     String message = "not allowed " + permToString(permission);
 		try {
 			checkPermission(permission);
-      //ConditionalTestControl.pass("FAIL>>>>" + message);
-			ConditionalTestControl.failException(message, wanted);
+      //System.out.println("FAIL>>>>" + message);
+			ConditionalTestSupport.failException(message, wanted);
 		} catch (Throwable e) {
       if (!e.getClass().equals(wanted.getClass()) && (wanted.isInstance(e))) {
-        ConditionalTestControl.pass(message + " and [" + e.getClass() + "] was thrown");
+        System.out.println(message + " and [" + e.getClass() + "] was thrown");
       } else {
-        ConditionalTestControl.assertException(message, wanted, e);
+        ConditionalTestSupport.assertException(message, wanted, e);
       }
 		}
 	}
@@ -276,12 +276,12 @@ public class ConditionalUtility {
   
   void testPermissions(ConditionInfo[] conditions, Permission[] permissions, AdminPermission[] allowedPermission, AdminPermission[] notAllowedPermission) {
     ConditionalPermissionInfo cpInfo = setPermissionsByCPermissionAdmin(conditions, permissions);
-    ConditionalTestControl.trace("Test " + cpInfoToString(cpInfo));
-    ConditionalTestControl.trace("Test for allowed permissions:");
+    System.out.println("Test " + cpInfoToString(cpInfo));
+    System.out.println("Test for allowed permissions:");
     for (int i = 0; i < allowedPermission.length; i++) {
       allowed(allowedPermission[i]);
     }
-    ConditionalTestControl.trace("Test for not allowed permissions:");
+    System.out.println("Test for not allowed permissions:");
     for (int k = 0; k < notAllowedPermission.length; k++) {
       notAllowed(notAllowedPermission[k], SecurityException.class);
     }
@@ -291,14 +291,14 @@ public class ConditionalUtility {
 	void testPermissions(ConditionInfo[] conditions, Permission[] permissions,
       AdminPermission[] allowedPermission, AdminPermission[] notAllowedPermission, String[] order1, String[] order2) {
     ConditionalPermissionInfo cpInfo = setPermissionsByCPermissionAdmin(conditions, permissions);
-    ConditionalTestControl.trace("Test " + cpInfoToString(cpInfo));
+    System.out.println("Test " + cpInfoToString(cpInfo));
     boolean testForAllowed = allowedPermission.length>0;
-    ConditionalTestControl.trace("Test for allowed permissions:");
+    System.out.println("Test for allowed permissions:");
     for (int i = 0; i < allowedPermission.length; i++) {
       allowed(allowedPermission[i]);
     }
     if (testForAllowed) testEqualArrays(order1, order2, TestCondition.getSatisfOrder());
-    ConditionalTestControl.trace("Test for not allowed permissions:");
+    System.out.println("Test for not allowed permissions:");
     for (int k = 0; k < notAllowedPermission.length; k++) {
       notAllowed(notAllowedPermission[k], SecurityException.class);
     }
@@ -316,7 +316,7 @@ public class ConditionalUtility {
 		String[] satisfOrder) {
 	try {
 		testEqualArrays(order1, satisfOrder);
-	} catch (AssertionFailedError e) {
+	} catch (AssertionError e) {
 		if (order2 == null) 
 			throw e;
 		testEqualArrays(order2, satisfOrder);
@@ -326,31 +326,31 @@ public class ConditionalUtility {
 
 void deletePermissions(ConditionInfo[] conditions, Permission permission) {
     ConditionalPermissionInfo cpInfo = setPermissionsByCPermissionAdmin(conditions, new Permission[] {permission});
-    ConditionalTestControl.pass("New permissions are set: " + cpInfoToString(cpInfo));
+    System.out.println("New permissions are set: " + cpInfoToString(cpInfo));
 		Enumeration<ConditionalPermissionInfo> infos = cpAdmin
 				.getConditionalPermissionInfos();
-    ConditionalTestControl.pass("All set conditional permissions are: ");
+    System.out.println("All set conditional permissions are: ");
     while (infos.hasMoreElements()) {
-      ConditionalTestControl.pass(cpInfoToString(infos.nextElement()));
+      System.out.println(cpInfoToString(infos.nextElement()));
     }
     cpInfo.delete();
-    ConditionalTestControl.pass("ConditionalPermissionInfo deleted");
+    System.out.println("ConditionalPermissionInfo deleted");
     int cpCounter = 0;
     while (infos.hasMoreElements()) {
       cpCounter++;
-      ConditionalTestControl.pass(cpInfoToString(infos.nextElement()));
+      System.out.println(cpInfoToString(infos.nextElement()));
     }
-    ConditionalTestControl.assertEquals("After delete there have to be no conditional permissions: ", 0, cpCounter);
+	assertThat(cpCounter).as("After delete there have to be no conditional permissions: ").isZero();
   }
   
   protected void testEqualArrays(String[] array1, String[] array2) {
     if (array1 != null && array2 != null) {
-      ConditionalTestControl.assertEquals("The number of checked TestConditions: ", array1.length, array2.length);
+      assertThat(array2.length).as("The number of checked TestConditions: ").isEqualTo(array1.length);
       for (int i=0; i<array1.length; i++) {
-        ConditionalTestControl.assertEquals("checked condition: ", array1[i], array2[i]);
+        assertThat(array2[i]).as("checked condition: ").isEqualTo(array1[i]);
       }
     } else {
-      ConditionalTestControl.fail("Not correct check of TestConditions.");
+      fail("Not correct check of TestConditions.");
     }
   }
   
