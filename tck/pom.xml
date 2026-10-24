@@ -13,7 +13,7 @@
 	<packaging>pom</packaging>
 
 	<properties>
-		<org.eclipse.osgi.version>3.18.100</org.eclipse.osgi.version>
+		<org.eclipse.osgi.version>3.24.300</org.eclipse.osgi.version>
 		<org.osgi.framework.version>1.10.0</org.osgi.framework.version>
 	</properties>
 
